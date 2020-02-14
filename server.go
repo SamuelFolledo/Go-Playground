@@ -2,13 +2,14 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	// "encoding/json"
-    "fmt"
-    // "os"
+	"fmt"
+	// "os"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo"
 	"gopkg.in/bluesuncorp/validator.v5" //validator
 )
 
@@ -27,6 +28,17 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 	return cv.validator.Struct(i)
 }
 
+func printString(s string) {
+	fmt.Println(s)
+}
+
+func delaySecond(scrapeResult string, n time.Duration) {
+	for _ = range time.Tick(n * time.Second) {
+		str := "Hi! " + n.String() + " seconds have passed"
+		printString(str)
+	}
+}
+
 func main() {
 	c := colly.NewCollector(
 		colly.Async(true),                    // Turn on asynchronous requests
@@ -42,14 +54,14 @@ func main() {
 	e.GET("/scrape", func(ec echo.Context) (err error) {
 		var scrapeResult = ""
 		//initialize scraper
-	
+
 		//SELECTORS LIST
 		//Spotlight Deal = #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-summary-card.card.ebayui-dne-item-featured-card--topDeals.ebayui-dne-featured-with-carousel > div > div > div.dne-itemtile-detail
 		//Trending Deals = #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-carousel.filmstrip-centered.ebayui-dne-carousel.ebayui-dne-trending-widget.filmstrip-1 > div
 		//Trending Deals 2 (li:nth-child(9)) = #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-carousel.filmstrip-centered.ebayui-dne-carousel.ebayui-dne-trending-widget.filmstrip-1 > div > ul > li:nth-child(9) > div > div.dne-itemtile-detail
 		//Featured Deals: #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div
 		//Featured Deals 2 (div:nth-child(1)): #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div > div:nth-child(1) > div > div.dne-itemtile-detail
-	
+
 		// On every a element which has href attribute call callback
 		c.OnHTML("#refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div > div > div > div.dne-itemtile-detail", func(e *colly.HTMLElement) {
 			// link := e.Attr("href")
@@ -62,37 +74,40 @@ func main() {
 			scrapeResult = e.DOM.Find("p").Text()
 			print("----------------------------------------------------------\n")
 		})
-	
+
 		// Before making a request print "Visiting ..."
 		// c.OnRequest(func(r *colly.Request) {
 		// 	fmt.Println("Visiting", r.URL.String())
 		// })
-	
+
 		// c.OnScraped(func(r *colly.Response) {
 		// 	fmt.Println("Finished", r.Request.URL)
 		// })
-	
+
 		// Start scraping on https://hackerspaces.org
 		c.Visit("https://www.ebay.com/deals")
 		// for i := 0; i < 1; i++ { // Start scraping in five threads on https://httpbin.org/delay/2
 		// 	c.Visit(fmt.Sprintf("%s?n=%d", "https://www.ebay.com/deals", i))
 		// }
-	
+
 		c.Wait() // Wait until threads are finished
+		// time.Sleep(2 * time.Second)
+		go delaySecond(scrapeResult, 5) // very useful for interval polling
 		return ec.String(http.StatusOK, scrapeResult)
 	})
+	// time.Sleep(2 * time.Second)
 	e.Logger.Fatal(e.Start(":1323"))
+	select {} // this will cause the program to run forever
 }
 
 // func getUser(){
 // 	e := echo.New()
 // 	e.POST("/", func(c echo.Context) error {
 
-
 // 		user := User{Name: "Kobe", Email: "kobe@gmail.com"}
 //         userJSON, _ := json.Marshal(user)
 // 		fmt.Println(string(userJSON))
-		
+
 // 		// m := echo.Map{
 // 		// 	&User{
 // 		// 		Name:  "Jon",
