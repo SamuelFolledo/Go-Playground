@@ -40,8 +40,12 @@ func delaySecond(scrapeResult string, n time.Duration) {
 }
 
 func main() {
+
+}
+
+func scrapeEbay() {
 	c := colly.NewCollector(
-		colly.Async(true),                    // Turn on asynchronous requests
+		colly.Async(false),                   // Turn on asynchronous requests
 		colly.Debugger(&debug.LogDebugger{}), // Attach a debugger to the collector
 	)
 	c.Limit(&colly.LimitRule{
@@ -52,7 +56,7 @@ func main() {
 
 	e := echo.New() //create a server, inir xollt
 	e.GET("/scrape", func(ec echo.Context) (err error) {
-		var scrapeResult = ""
+		var scrapeResult string
 		//initialize scraper
 
 		//SELECTORS LIST
@@ -73,7 +77,10 @@ func main() {
 			fmt.Println("PARAGRAPHS", e.DOM.Find("p").Text())
 			scrapeResult = e.DOM.Find("p").Text()
 			print("----------------------------------------------------------\n")
+
 		})
+
+		// print("SCRAPE RESULT")
 
 		// Before making a request print "Visiting ..."
 		// c.OnRequest(func(r *colly.Request) {
@@ -92,7 +99,7 @@ func main() {
 
 		c.Wait() // Wait until threads are finished
 		// time.Sleep(2 * time.Second)
-		go delaySecond(scrapeResult, 5) // very useful for interval polling
+		// go delaySecond(scrapeResult, 5) // very useful for interval polling
 		return ec.String(http.StatusOK, scrapeResult)
 	})
 	// time.Sleep(2 * time.Second)
