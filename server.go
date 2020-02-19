@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"time"
 
 	// "encoding/json"
 	"fmt"
@@ -10,7 +9,11 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/labstack/echo"
-	"gopkg.in/bluesuncorp/validator.v5" //validator
+
+	//validator
+	//GORM
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
 type (
@@ -18,29 +21,41 @@ type (
 		Name  string `json:"name" validate:"required"`
 		Email string `json:"email" validate:"required,email"`
 	}
-
-	CustomValidator struct {
-		validator *validator.Validate
-	}
 )
 
-func (cv *CustomValidator) Validate(i interface{}) error {
-	return cv.validator.Struct(i)
-}
-
-func printString(s string) {
-	fmt.Println(s)
-}
-
-func delaySecond(scrapeResult string, n time.Duration) {
-	for _ = range time.Tick(n * time.Second) {
-		str := "Hi! " + n.String() + " seconds have passed"
-		printString(str)
-	}
+type Product struct {
+	gorm.Model
+	Code  string
+	Price uint
 }
 
 func main() {
+	db, err := gorm.Open("sqlite3", "test.db")
+	if err != nil {
+		panic("failed to connect database")
+	}
+	defer db.Close()
 
+	// Migrate the schema
+	db.AutoMigrate(&Product{})
+
+	// Create
+	db.Create(&Product{Code: "L1212", Price: 1000})
+
+	// Read
+	var product Product
+	db.First(&product, 1)                   // find product with id 1
+	db.First(&product, "code = ?", "L1212") // find product with code l1212
+
+	fmt.Println("Product = ", product.Code, " ", product.Price)
+
+	// Update - update product's price to 2000
+	db.Model(&product).Update("Price", 2000)
+
+	fmt.Println("Product = ", product.Code, " ", product.Price)
+
+	// Delete - delete product
+	db.Delete(&product)
 }
 
 func scrapeEbay() {
