@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
 	// "encoding/json"
-	"fmt"
+
 	// "os"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
@@ -30,96 +32,77 @@ type Product struct {
 }
 
 func main() {
-	db, err := gorm.Open("sqlite3", "test.db")
-	if err != nil {
-		panic("failed to connect database")
-	}
-	defer db.Close()
 
-	// Migrate the schema
-	db.AutoMigrate(&Product{})
+	goRoutineExample()
 
-	// Create
-	db.Create(&Product{Code: "L1212", Price: 1000})
+	// scrapeEbay()
 
-	// Read
-	var product Product
-	db.First(&product, 1)                   // find product with id 1
-	db.First(&product, "code = ?", "L1212") // find product with code l1212
+	// db, err := gorm.Open("sqlite3", "test.db")
+	// if err != nil {
+	// 	panic("failed to connect database")
+	// }
+	// defer db.Close()
 
-	fmt.Println("Product = ", product.Code, " ", product.Price)
+	// // Migrate the schema
+	// db.AutoMigrate(&Product{})
 
-	// Update - update product's price to 2000
-	db.Model(&product).Update("Price", 2000)
+	// // Create
+	// db.Create(&Product{Code: "L1212", Price: 1000})
 
-	fmt.Println("Product = ", product.Code, " ", product.Price)
+	// // Read
+	// var product Product
+	// db.First(&product, 1)                   // find product with id 1
+	// db.First(&product, "code = ?", "L1212") // find product with code l1212
 
-	// Delete - delete product
-	db.Delete(&product)
+	// fmt.Println("Product = ", product.Code, " ", product.Price)
+
+	// // Update - update product's price to 2000
+	// db.Model(&product).Update("Price", 2000)
+
+	// fmt.Println("Product = ", product.Code, " ", product.Price)
+
+	// // Delete - delete product
+	// db.Delete(&product)
 }
 
 func scrapeEbay() {
 	c := colly.NewCollector(
-		colly.Async(false),                   // Turn on asynchronous requests
+		colly.Async(true),                    // Turn on asynchronous requests
 		colly.Debugger(&debug.LogDebugger{}), // Attach a debugger to the collector
 	)
-	c.Limit(&colly.LimitRule{
-		DomainGlob:  "*httpbin.*", // when visiting links which domains' matches "*httpbin.*" glob
-		Parallelism: 2,            // Limit the number of threads started by colly to two
-		//Delay:      5 * time.Second,
+
+	var deals []string
+
+	c.OnHTML("#refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div > div > div > div.dne-itemtile-detail", func(e *colly.HTMLElement) { //when you find these selectors, then we complete the completion founder
+		// print("\n==========================================================")
+		// fmt.Println("PARAGRAPHS", e.DOM.Find("p").Text())
+		scrapeResult := e.DOM.Find("p").Text()
+		// print("\nSCRAPE RESULT IS ", scrapeResult)
+		// deals += scrapeResult
+		deals = append(deals, scrapeResult)
+		// print("----------------------------------------------------------\n")
 	})
+
+	fmt.Println("EYOOO", deals)
+
+	for index, element := range deals {
+		fmt.Println("Each deals are: ", index, " === ", element)
+	}
 
 	e := echo.New() //create a server, inir xollt
 	e.GET("/scrape", func(ec echo.Context) (err error) {
-		var scrapeResult string
-		//initialize scraper
-
-		//SELECTORS LIST
-		//Spotlight Deal = #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-summary-card.card.ebayui-dne-item-featured-card--topDeals.ebayui-dne-featured-with-carousel > div > div > div.dne-itemtile-detail
-		//Trending Deals = #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-carousel.filmstrip-centered.ebayui-dne-carousel.ebayui-dne-trending-widget.filmstrip-1 > div
-		//Trending Deals 2 (li:nth-child(9)) = #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-carousel.filmstrip-centered.ebayui-dne-carousel.ebayui-dne-trending-widget.filmstrip-1 > div > ul > li:nth-child(9) > div > div.dne-itemtile-detail
-		//Featured Deals: #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div
-		//Featured Deals 2 (div:nth-child(1)): #refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div > div:nth-child(1) > div > div.dne-itemtile-detail
-
-		// On every a element which has href attribute call callback
-		c.OnHTML("#refit-spf-container > div.sections-container > div.ebayui-dne-featured-card.ebayui-dne-featured-with-padding > div.ebayui-dne-item-featured-card.ebayui-dne-item-featured-card > div > div > div > div.dne-itemtile-detail", func(e *colly.HTMLElement) {
-			// link := e.Attr("href")
-			// Print link
-			print("\n==========================================================")
-			print("\n++++++++E TEXT = ", e.Text, "\n\n")
-			// print("\n++++++++E DOM = ", e.DOM.Text(), "\n\n")
-			fmt.Printf("\n++++++++Link found: -> %s\n\n", e.Attr("href"))
-			fmt.Println("PARAGRAPHS", e.DOM.Find("p").Text())
-			scrapeResult = e.DOM.Find("p").Text()
-			print("----------------------------------------------------------\n")
-
-		})
-
-		// print("SCRAPE RESULT")
-
-		// Before making a request print "Visiting ..."
-		// c.OnRequest(func(r *colly.Request) {
-		// 	fmt.Println("Visiting", r.URL.String())
-		// })
-
-		// c.OnScraped(func(r *colly.Response) {
-		// 	fmt.Println("Finished", r.Request.URL)
-		// })
-
-		// Start scraping on https://hackerspaces.org
 		c.Visit("https://www.ebay.com/deals")
-		// for i := 0; i < 1; i++ { // Start scraping in five threads on https://httpbin.org/delay/2
-		// 	c.Visit(fmt.Sprintf("%s?n=%d", "https://www.ebay.com/deals", i))
-		// }
+		c.Wait()
 
-		c.Wait() // Wait until threads are finished
-		// time.Sleep(2 * time.Second)
-		// go delaySecond(scrapeResult, 5) // very useful for interval polling
-		return ec.String(http.StatusOK, scrapeResult)
+		firstDeal := deals[0]
+		fmt.Println("First deal is =====", firstDeal)
+
+		return ec.String(http.StatusOK, firstDeal)
 	})
+
 	// time.Sleep(2 * time.Second)
 	e.Logger.Fatal(e.Start(":1323"))
-	select {} // this will cause the program to run forever
+	// select {} // this will cause the program to run forever
 }
 
 // func getUser(){
@@ -180,3 +163,37 @@ func scrapeEbay() {
 // 	})
 // 	e.Logger.Fatal(e.Start(":1323"))
 // }
+
+///////////-----------------------------------------
+func goRoutineExample() {
+
+	theMine := [5]string{"ore1", "ore2", "ore3"}
+	oreChan := make(chan string)
+
+	// Finder
+	go func(mine [5]string) { //a function that takes a mine with 5 elements
+		print("\n1")
+		for _, item := range mine {
+			print("\n2")
+			oreChan <- item //send item to the channel
+			print("\n3")
+		}
+	}(theMine) //(theMine) this executes this go function
+
+	// Ore Breaker
+	go func() {
+		print("\n4")
+		for i := 0; i < 3; i++ {
+			print("\n5")
+			foundOre := <-oreChan //receive
+			print("\n6")
+			fmt.Println("\nMiner: Received " + foundOre + " from finder")
+			print("\n7")
+		}
+		print("\n8")
+	}()
+	print("\n9")
+	<-time.After(time.Second * 5) // Again, ignore this for now
+	print("\n10")
+
+}
